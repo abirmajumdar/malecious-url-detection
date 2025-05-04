@@ -239,35 +239,76 @@ def predict_url_type(url):
 def generate_explanation(features, prediction):
     explanation = []
 
-    # Check feature-based conditions
-    if features[16] > 0:
-        explanation.append("Suspicious words found in URL.")
-    if features[1] > 0:
-        explanation.append("Abnormal URL detected.")
-    if features[2] > 3:
-        explanation.append("Too many dots in URL structure.")
+    # Feature mappings for clarity
+    (
+        use_of_ip, abnormal_url, count_dot, count_www, count_atrate, count_dir,
+        count_embed_domain, short_url, count_https, count_http, count_percent,
+        count_question, count_hyphen, count_equal, url_len, hostname_len,
+        suspicious_word, fd_len, count_digits, count_letters
+    ) = features
 
-    # Determine risk level based on prediction and features
+    # Analyze extracted features
+    if use_of_ip:
+        explanation.append("The URL uses an IP address instead of a domain name, which is suspicious.")
+    if abnormal_url:
+        explanation.append("The URL is malformed or abnormal, indicating possible phishing.")
+    if count_dot > 4:
+        explanation.append("The URL has too many dots, suggesting a complicated and potentially deceptive structure.")
+    if count_www == 0:
+        explanation.append("URL does not contain 'www', which is unusual for legitimate sites.")
+    if count_atrate > 0:
+        explanation.append("The URL contains '@' symbol, which can mislead users into thinking they're on a legitimate site.")
+    if count_embed_domain > 0:
+        explanation.append("The URL has multiple embedded domains ('//'), a common trick in phishing.")
+    if short_url:
+        explanation.append("The URL uses a known URL shortening service, which can hide the final destination.")
+    if count_hyphen > 3:
+        explanation.append("Excessive hyphens in the domain or path, which may indicate a fake website.")
+    if suspicious_word:
+        explanation.append("Suspicious keywords like 'login', 'bank', 'update' detected in the URL.")
+    if count_question > 2 or count_equal > 3:
+        explanation.append("Multiple query parameters ('?' or '=') found, could indicate phishing.")
+    if url_len > 75:
+        explanation.append("The URL is excessively long, often used to obscure malicious content.")
+    if hostname_len > 50:
+        explanation.append("The hostname is very long, which is unusual for trustworthy sites.")
+    if fd_len > 15:
+        explanation.append("The first directory name is suspiciously long.")
+
+    # Set Risk Level based on severity
     if prediction == "phishing":
-        if len(explanation) >= 2:
+        if len(explanation) >= 5:
             risk_level = "High Risk"
-        elif len(explanation) == 1:
+        elif len(explanation) >= 3:
             risk_level = "Moderate Risk"
         else:
             risk_level = "Low Risk"
-        explanation.append("Based on features, URL classified as malicious.")
+        explanation.append("Machine learning model predicts this URL as malicious.")
     else:
-        risk_level = "Safe"
-        explanation.append("Overall features suggest URL is safe.")
+        if len(explanation) >= 3:
+            risk_level = "Moderate Risk"
+            explanation.append("Some features are concerning, but model predicts the URL as legitimate.")
+        else:
+            risk_level = "Safe"
+            explanation.append("Features and model both suggest the URL is safe.")
 
     return explanation, risk_level
 
 
+
 def google_search(url):
     try:
-        results = search(url, num=5, stop=5, pause=2)
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc.split(':')[0]
+
+        query = f"site:{domain}"
+
+        # Updated to match googlesearch-python
+        results = search(query, num_results=5)
+
         return list(results)
-    except:
+    except Exception as e:
+        print(f"Error during Google search: {e}")
         return []
 
 # --- CSP Headers ---
@@ -330,5 +371,5 @@ def predict():
 
 if __name__ == '__main__':
    port = int(os.environ.get("PORT", 5000))  # Use the PORT env variable or default to 5000
-   app.run(host="0.0.0.0", port=port, debug=True)
+   app.run(host="0.0.0.0", port=port)
 
