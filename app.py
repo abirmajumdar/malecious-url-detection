@@ -322,6 +322,9 @@ def add_csp_headers(response):
 def home():
     return 'Hello, Flask is running!'
 
+@app.route('/ping')
+def ping():
+    return "I'm awake!", 200
 
 @app.route('/predict', methods=['POST'])
 def predict():
